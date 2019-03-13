@@ -7,34 +7,323 @@
 * Presenter: 从Model拿数据，应用到UI层，管理UI的状态，响应用户的行为。
 
 ## 二.MVP 优势
+
 * 分离了视图逻辑和业务逻辑，降低了耦合。
 * Activity只处理生命周期的任务，代码变得更加简洁。
 * 视图逻辑和业务逻辑分别抽象到了View和Presenter的接口中，提高代码的阅读性。
 * Presenter被抽象成接口，可以有多种具体的实现，所以方便进行单元测试。
 * 把业务逻辑抽到Presenter中去，避免后台线程引用着Activity导致Activity的资源无法被系统回收从而引起内存泄露和OOM。
 
-## 三.Google todo-dagger-mvp 架构解析
+## 三.Demo 项目简介
 
-### 1.项目结构如下：
+整个项目使用mvp + dagger的基本方式搭建。基本架构如下：
 
-![project-directory](Googel-todo-dagger-mvp.png)
+**app module code architecture:**
 
-从上图可以看出，**todo-mvp**是按照功能模块划分的：
-1.**tasks, taskdetail, addedittask, statistics**是四个业务模块。
+~~~
+├── MainApplication.java
+├── Model
+├── activity
+│   └── MainActivity.java
+├── di
+│   ├── component
+│   │   └── MainActivityComponent.java
+│   └── module
+│       └── MainActivityModule.java
+└── mvp
+    ├── presenter
+    │   └── MainActivityPresenter.java
+    └── view
+        └── MainActivityView.java
 
-2.**data**是数据模块，其中具体的类TasksRepository担任Model层，负责远程和本地数据的获取。
+~~~
 
-3.**BasePresenter**和**BaseView**是presenter 和 view 的基类，在具体模块承担实际功能。
+**baseLibrary module code architecture:**
 
-4.**di**使用dagger来提供依赖注入
+~~~
+├── BaseApplication.java
+├── Model
+│   ├── AppService.java
+│   ├── BaseResponse.java
+│   ├── Peotry.java
+│   └── UserInfo.java
+├── di
+│   ├── component
+│   │   ├── ActivityComponent.java
+│   │   └── AppComponent.java
+│   ├── module
+│   │   ├── ActivityModule.java
+│   │   └── AppModule.java
+│   └── scope
+│       ├── ActivityScope.java
+│       └── BusinessScope.java
+├── mvp
+│   ├── BaseMVPActivity.java
+│   ├── BaseMVPFragment.java
+│   ├── BasePresenter.java
+│   └── BaseView.java
+├── rx
+│   └── RxUtils.java
+├── util
+└── widget
+~~~
+
+## dagger 部分：
+#### 1.AppModule 用来提供App 全生命周期的依赖单例，并通过AppComponent暴露出去；
+
+**AppModule:**
+```
+/**
+ * 拥有全局生命周期的单例都在这个AppModule中提供
+ */
+@Module
+public class AppModule {
+
+   private Context mApplicationContext;
+
+    public AppModule(Context applicationContext) {
+        mApplicationContext = applicationContext;
+    }
+
+    @Singleton
+    @Provides
+    Context provideApplicationContext() {
+        return mApplicationContext;
+    }
+
+    @Singleton
+    @Provides
+    NetworkUtils provideNetWorkUtils() {
+        return new NetworkUtils();
+    }
+
+    @Singleton
+    @Provides
+    AppService provideAppService(NetworkUtils networkUtils) {
+        return networkUtils.getClientUtil().buildRestAdapter("https://api.apiopen.top", 5, new Gson(), true, mApplicationContext)
+                .timeoutInSeconds(20)
+                .build()
+                .create(AppService.class);
+    }
+}
+```
+
+**AppComponent:**
+
+```
+@Singleton
+@Component(modules = AppModule.class)
+public interface AppComponent {
+    Context appContext();
+
+    AppService appService();
+}
+```
+
+#### 2.ActivityModule用来提供具体的Activity生命周期的依赖单例，ActivityComponent 通过依赖ActivityModule 以及AppComponent 暴露出APP全局生命周期对象以及Activity生命周期对象
+
+**ActivityModule:**
+```
+/**
+ * 拥有Activity生命周期的单例从这里提供
+ */
+@Module
+public class ActivityModule {
+    RxAppCompatActivity mActivity;
+
+    public ActivityModule(RxAppCompatActivity activity) {
+        mActivity = activity;
+    }
+
+    @ActivityScope
+    @Provides
+    RxAppCompatActivity provideActivity(){
+        return mActivity;
+    }
+}
+```
+
+**ActivityComponent:**
+
+```
+@ActivityScope
+@Component(modules = {ActivityModule.class} , dependencies = AppComponent.class)
+public interface ActivityComponent {
+
+    Context appContext();
+
+    RxAppCompatActivity activity();
+
+    AppService appService();
+}
+```
+
+#### 3.具体Activity的 DI 依赖.
+以MainActivity 为例。MainActivityModule 提供MainActivityPresenter。MainActivityComponent 通过依赖 MainActivityModule 以及ActivityComponent,将presenter注入对应的Activity。
+
+**MainActivityModule:**
+```
+@Module
+public class MainActivityModule {
+
+    @BusinessScope
+    @Provides
+    MainActivityPresenter provideMainActivityPresenter(AppService appService, RxAppCompatActivity mActivity){
+     return new MainActivityPresenter(appService,mActivity);
+    }
+}
+```
+
+**MainActivityComponent:**
+```
+@BusinessScope
+@Component(modules = MainActivityModule.class, dependencies = ActivityComponent.class)
+public interface MainActivityComponent {
+    void inject(MainActivity mainActivity);
+}
+```
+
+## MVP 部分：
+
+#### 1.BaseView
 
 
-### 2.MVP的具体架构
-![todoActually-architecture](todo_actual.png)
+```
+public interface BaseView{
 
-### 3.
+     void showLoading();
 
+     void hideLoading();
 
+     void onError();
+}
+```
+
+#### 2.BasePresenter
+```
+public class BasePresenter<T extends BaseView> {
+   //use WeakReference to prevent memory leak risk
+   public WeakReference<T> mView;
+
+   public void attachView(T view){
+       mView = new WeakReference<>(view);
+    }
+
+    public void detachView(){
+        mView = null;
+    }
+}
+```
+#### 3.简单使用:
+
+**MainActivityView：**
+继承于BaseView接口，同时扩展了一个showResult方法用来显示网络请求成功后的内容显示
+```
+ public interface MainActivityView extends BaseView {
+     void showResult(String result);
+}
+```
+
+**MainActivity:**
+实现了MainActivityView接口，并注入MainActivityPresenter.在生命周期onResume and onDestroy调用对应Presenter的attachView and detachView来防止内存泄漏；
+```
+public class MainActivity extends BaseMVPActivity implements MainActivityView {
+
+    @Inject
+    MainActivityPresenter mPresenter;
+
+    TextView mTextView;
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mTextView = (TextView) findViewById(R.id.tv_result);
+
+        findViewById(R.id.fetch).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mPresenter.getPoetry();
+            }
+        });
+    }
+
+    @Override
+    protected void InjectComponent() {
+        DaggerMainActivityComponent.builder().activityComponent(getActivityComponent()).build().inject(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mPresenter.attachView(this);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mPresenter.detachView();
+    }
+
+    @Override
+    public void onError() {
+        Toast.makeText(this, "网络出错了", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void showResult(String result) {
+        mTextView.setText(result);
+    }
+}
+```
+
+**MainActivityPresenter:**
+
+构造中注入对应的Appservice 以及RxActivity 实例对象：
+
+```
+public class MainActivityPresenter extends BasePresenter<MainActivityView> {
+
+    AppService mAppService;
+    RxAppCompatActivity mRxActivity;
+
+    @Inject
+    public MainActivityPresenter(AppService appService, RxAppCompatActivity rxActivity) {
+        mAppService = appService;
+        mRxActivity = rxActivity;
+    }
+
+    public void getPoetry() {
+        mView.get().showLoading();
+        mAppService.getPoetry(1, 20)
+                .compose(RxUtils.switchIOAndMainThreadTransformer())
+                .compose(mRxActivity.bindToLifecycle())
+                .subscribe(new RxUtils.SimpleSubscriber<Object>() {
+                    @Override
+                    public void onNext(Object o) {
+                        if (mView.get() != null) {
+                            mView.get().hideLoading();
+                            mView.get().showResult(o.toString());
+                        }
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        super.onCompleted();
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        super.onError(e);
+                        if (mView.get() != null) {
+                            mView.get().hideLoading();
+                        }
+                    }
+                });
+    }
+}
+```
 
 
 

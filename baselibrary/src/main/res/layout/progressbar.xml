@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bandzo_progressbar"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:paddingTop="20dp"
+    android:paddingBottom="20dp"
+    android:orientation="vertical"
+    android:background="#d1d1d1">
+    <ProgressBar style="?android:attr/progressBarStyle"
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" />
+    <TextView
+        android:id="@+id/progress_text"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:fontFamily="sans-serif-light"
+        android:textStyle="normal"
+        android:text="Loading" />
+</LinearLayout>

@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="cn.chou.aric.baselibrary"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"/>
+
+
+</manifest>
+
+
+
