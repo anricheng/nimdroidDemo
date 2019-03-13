@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import javax.inject.Inject;
 
@@ -51,11 +50,6 @@ public class MainActivity extends BaseMVPActivity implements MainActivityView {
     protected void onDestroy() {
         super.onDestroy();
         mPresenter.detachView();
-    }
-
-    @Override
-    public void onError() {
-        Toast.makeText(this, "网络出错了", Toast.LENGTH_SHORT).show();
     }
 
     @Override

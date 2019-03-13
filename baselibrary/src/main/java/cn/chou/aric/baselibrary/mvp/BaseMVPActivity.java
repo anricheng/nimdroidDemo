@@ -9,6 +9,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
@@ -26,11 +27,10 @@ public abstract class BaseMVPActivity extends RxAppCompatActivity implements Bas
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mActivityComponent =DaggerActivityComponent.builder()
+        mActivityComponent = DaggerActivityComponent.builder()
                 .appComponent(((BaseApplication) getApplication()).getAppComponent())
                 .activityModule(new ActivityModule(this))
                 .build();
-        mProgressDialog = showProgressDialog(this, R.layout.progressbar, null);
         InjectComponent();
 
     }
@@ -43,20 +43,27 @@ public abstract class BaseMVPActivity extends RxAppCompatActivity implements Bas
 
     @Override
     public void showLoading() {
-        mProgressDialog.show();
+        if (mProgressDialog == null) {
+            mProgressDialog = showProgressDialog(this, R.layout.progressbar, null);
+        }
+        if (mProgressDialog != null) {
+            mProgressDialog.show();
+        }
     }
 
     @Override
     public void hideLoading() {
-        mProgressDialog.hide();
+        if (mProgressDialog != null) {
+            mProgressDialog.hide();
+        }
     }
 
     @Override
     public void onError() {
-
+        Toast.makeText(this, "Wow, something go wrong,please try again later", Toast.LENGTH_SHORT).show();
     }
 
-   //short time solution
+    //short time solution
     public ProgressDialog showProgressDialog(Context context
             , int customLayoutId, DialogInterface.OnCancelListener listener) {
         if (context != null) {

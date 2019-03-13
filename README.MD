@@ -22,7 +22,6 @@
 
 ~~~
 ├── MainApplication.java
-├── Model
 ├── activity
 │   └── MainActivity.java
 ├── di
@@ -30,11 +29,13 @@
 │   │   └── MainActivityComponent.java
 │   └── module
 │       └── MainActivityModule.java
+├── model
 └── mvp
     ├── presenter
     │   └── MainActivityPresenter.java
     └── view
         └── MainActivityView.java
+
 
 ~~~
 
@@ -42,11 +43,6 @@
 
 ~~~
 ├── BaseApplication.java
-├── Model
-│   ├── AppService.java
-│   ├── BaseResponse.java
-│   ├── Peotry.java
-│   └── UserInfo.java
 ├── di
 │   ├── component
 │   │   ├── ActivityComponent.java
@@ -57,6 +53,12 @@
 │   └── scope
 │       ├── ActivityScope.java
 │       └── BusinessScope.java
+├── model
+│   ├── AppService.java
+│   ├── BaseResponse.java
+│   ├── CustomTrustManager.java
+│   ├── Peotry.java
+│   └── UserInfo.java
 ├── mvp
 │   ├── BaseMVPActivity.java
 │   ├── BaseMVPFragment.java
@@ -79,7 +81,7 @@
 @Module
 public class AppModule {
 
-   private Context mApplicationContext;
+    private Context mApplicationContext;
 
     public AppModule(Context applicationContext) {
         mApplicationContext = applicationContext;
@@ -93,19 +95,43 @@ public class AppModule {
 
     @Singleton
     @Provides
-    NetworkUtils provideNetWorkUtils() {
-        return new NetworkUtils();
+    AppService provideAppService(Retrofit retrofit) {
+        return retrofit.create(AppService.class);
     }
 
     @Singleton
     @Provides
-    AppService provideAppService(NetworkUtils networkUtils) {
-        return networkUtils.getClientUtil().buildRestAdapter("https://api.apiopen.top", 5, new Gson(), true, mApplicationContext)
-                .timeoutInSeconds(20)
-                .build()
-                .create(AppService.class);
+    HostnameVerifier provideHostnameVerifier() {
+        HostnameVerifier hostnameVerifier = new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        };
+        return hostnameVerifier;
     }
-}
+
+    @Singleton
+    @Provides
+    OkHttpClient provideOkHttp(HostnameVerifier hostnameVerifier) {
+        HttpsUtils.SSLParams sslParams = HttpsUtils.getSslSocketFactory(null, null, null);
+        return new OkHttpClient.Builder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .connectionSpecs(Arrays.asList(ConnectionSpec.MODERN_TLS, ConnectionSpec.CLEARTEXT))
+                .sslSocketFactory(sslParams.sSLSocketFactory, sslParams.trustManager)
+                .hostnameVerifier(hostnameVerifier)
+                .build();
+    }
+
+    @Singleton
+    @Provides
+    Retrofit provideRetrofit(OkHttpClient okHttpClient) {
+        return new Retrofit.Builder().baseUrl("https://api.apiopen.top")
+                .client(okHttpClient)
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+    }
 ```
 
 **AppComponent:**
@@ -201,15 +227,16 @@ public interface BaseView{
 
 #### 2.BasePresenter
 ```
-public class BasePresenter<T extends BaseView> {
-   //use WeakReference to prevent memory leak risk
-   public WeakReference<T> mView;
 
-   public void attachView(T view){
-       mView = new WeakReference<>(view);
+public class BasePresenter<T extends BaseView> {
+
+    public T mView;
+
+    public void attachView(T view) {
+        mView = view;
     }
 
-    public void detachView(){
+    public void detachView() {
         mView = null;
     }
 }
@@ -294,30 +321,30 @@ public class MainActivityPresenter extends BasePresenter<MainActivityView> {
     }
 
     public void getPoetry() {
-        mView.get().showLoading();
+
+        if (mView != null) {
+            mView.showLoading();
+        }
+
         mAppService.getPoetry(1, 20)
-                .compose(RxUtils.switchIOAndMainThreadTransformer())
-                .compose(mRxActivity.bindToLifecycle())
-                .subscribe(new RxUtils.SimpleSubscriber<Object>() {
-                    @Override
-                    public void onNext(Object o) {
-                        if (mView.get() != null) {
-                            mView.get().hideLoading();
-                            mView.get().showResult(o.toString());
-                        }
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        super.onCompleted();
-
-                    }
-
+                .compose(mRxActivity.<Peotry>bindToLifecycle())
+                .compose(RxUtils.<Peotry>switchIOAndMainThreadTransformer())
+                .subscribe(new RxUtils.SimpleSubscriber<Peotry>() {
                     @Override
                     public void onError(Throwable e) {
-                        super.onError(e);
-                        if (mView.get() != null) {
-                            mView.get().hideLoading();
+                        if (mView != null) {
+                            mView.hideLoading();
+                            mView.onError();
+
+                        }
+                        e.printStackTrace();
+                    }
+
+                    @Override
+                    public void onNext(Peotry peotry) {
+                        if (mView != null) {
+                            mView.hideLoading();
+                            mView.showResult(peotry.toString());
                         }
                     }
                 });

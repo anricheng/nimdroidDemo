@@ -3,6 +3,14 @@ package cn.chou.aric.baselibrary.model;
 import java.util.List;
 
 public class Peotry {
+    @Override
+    public String toString() {
+        return "Peotry{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                ", result=" + result +
+                '}';
+    }
 
     /**
      * code : 200
@@ -15,6 +23,15 @@ public class Peotry {
     public List<Result> result;
 
     public static class Result {
+        @Override
+        public String toString() {
+            return "Result{" +
+                    "title='" + title + '\'' +
+                    ", content='" + content + '\'' +
+                    ", authors='" + authors + '\'' +
+                    '}';
+        }
+
         /**
          * title : 日诗
          * content : 欲出未出光辣达，千山万山如火发。|须臾走向天上来，逐却残星赶却月。
