@@ -353,7 +353,7 @@ public class MainActivityPresenter extends BasePresenter<MainActivityView> {
 ```
 ## 依赖部分
 
-鉴于目前主项目用的是Rxjava 1.x,此Demo 项目的所有依赖都是基于RxJava 1.x,此Demo 中使用的相关依赖都是基于RxJava 1.x
+鉴于目前主项目用的是Rxjava 1.x,此Demo 项目的所有依赖都是基于RxJava 1.x:
 
 ```
     //RxLifecycle
