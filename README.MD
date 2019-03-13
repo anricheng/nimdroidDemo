@@ -351,6 +351,24 @@ public class MainActivityPresenter extends BasePresenter<MainActivityView> {
     }
 }
 ```
+## 依赖部分
+
+鉴于目前主项目用的是Rxjava 1.x,此Demo 项目的所有依赖都是基于RxJava 1.x,此Demo 中使用的相关依赖都是基于RxJava 1.x
+
+```
+    //RxLifecycle
+    api 'com.trello:rxlifecycle:1.0'
+    api 'com.trello:rxlifecycle-components:1.0'
+
+    // Retrofit
+    api 'com.squareup.retrofit2:retrofit:2.3.0'
+    api 'com.squareup.retrofit2:converter-gson:2.3.0'
+    api 'com.squareup.retrofit2:adapter-rxjava:2.3.0'
+
+    // RxJava RxAndroid
+    api 'io.reactivex:rxandroid:1.2.1'
+    api 'io.reactivex:rxjava:1.3.0'
+```
 
 
 
